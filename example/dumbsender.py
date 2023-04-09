@@ -27,6 +27,9 @@ MAX_PAYLOAD = 1024
 config = None
 ex_sending_chunkhash = ""
 
+
+
+
 def process_download(sock,chunkfile, outputfile):
     '''
     if DOWNLOAD is used, the peer will keep getting files until it is done

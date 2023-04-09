@@ -45,16 +45,23 @@ def process_download(sock,chunkfile, outputfile):
         index, datahash_str = cf.readline().strip().split(" ")
         ex_received_chunk[datahash_str] = bytes()
         ex_downloading_chunkhash = datahash_str
-
         # hex_str to bytes
         datahash = bytes.fromhex(datahash_str)
         download_hash = download_hash + datahash
+
+
 
     # Step2: make WHOHAS pkt
     # |2byte magic|1byte type |1byte team|
     # |2byte  header len  |2byte pkt len |
     # |      4byte  seq                  |
-    # |      4byte  ack                  | 
+    # |      4byte  ack                  |
+    # |      4byte  ack                  |
+    # |      4byte  ack                  |
+    # |      4byte  ack                  |
+    # |      4byte  ack                  |
+
+
     whohas_header = struct.pack("HBBHHII", socket.htons(52305),35, 0, socket.htons(HEADER_LEN), socket.htons(HEADER_LEN+len(download_hash)), socket.htonl(0), socket.htonl(0))
     whohas_pkt = whohas_header + download_hash
 
@@ -78,6 +85,7 @@ def process_inbound_udp(sock):
         get_header = struct.pack("HBBHHII", socket.htons(52305), 35, 2 , socket.htons(HEADER_LEN), socket.htons(HEADER_LEN+len(get_chunk_hash)), socket.htonl(0), socket.htonl(0))
         get_pkt = get_header+get_chunk_hash
         sock.sendto(get_pkt, from_addr)
+
     elif Type == 3:
         # received a DATA pkt
         ex_received_chunk[ex_downloading_chunkhash] += data

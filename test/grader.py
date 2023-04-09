@@ -27,10 +27,14 @@ class PeerProc:
         self.timeout = timeout
 
     def start_peer(self):
-        cmd = f"python3 -u {self.peer_file_loc} -p {self.node_map_loc} -c {self.haschunk_loc} -m {self.max_transmit} -i {self.id} -t {self.timeout}"
+        if self.timeout:
+            cmd = f"python3 -u {self.peer_file_loc} -p {self.node_map_loc} -c {self.haschunk_loc} -m {self.max_transmit} -i {self.id} -t {self.timeout}"
+        else:
+            cmd = f"python3 -u {self.peer_file_loc} -p {self.node_map_loc} -c {self.haschunk_loc} -m {self.max_transmit} -i {self.id}"
+
         self.process = subprocess.Popen(cmd.split(" "), stdin=subprocess.PIPE,stdout=subprocess.DEVNULL,text=True, bufsize=1, universal_newlines=True)
         # ensure peer is running
-        time.sleep(0.1) 
+        time.sleep(1) 
 
     def send_cmd(self, cmd):
         self.process.stdin.write(cmd)
@@ -59,7 +63,7 @@ class PeerProc:
 
 
 class GradingSession:
-    def __init__(self, grading_handler, latency = 0.05, spiffy=False):
+    def __init__(self, grading_handler, latency = 0.05, spiffy=False, topo_map = "test/tmp3/topo3.map", nodes_map = "test/tmp3/nodes3.map"):
         self.peer_list = dict()
         self.checkerIP = "127.0.0.1"
         self.checkerPort = random.randint(30525, 52305)
@@ -71,6 +75,9 @@ class GradingSession:
         self.grading_handler = grading_handler
         self.sending_window = dict()
         self.spiffy = spiffy
+
+        self.topo = topo_map
+        self.nodes = nodes_map
 
     def recv_pkt(self):
         while not self._FINISH:
@@ -102,8 +109,8 @@ class GradingSession:
     def stop_grader(self):
         self._FINISH = True
 
-    def add_peer(self, identity, peer_file_loc, node_map_loc, haschunk_loc, max_transmit, peer_addr):
-        peer = PeerProc(identity, peer_file_loc, node_map_loc, haschunk_loc, max_transmit)
+    def add_peer(self, identity, peer_file_loc, node_map_loc, haschunk_loc, max_transmit, peer_addr, timeout = 60):
+        peer = PeerProc(identity, peer_file_loc, node_map_loc, haschunk_loc, max_transmit, timeout=timeout)
         self.peer_list[peer_addr] = peer
 
     def run_grader(self):
@@ -126,7 +133,7 @@ class GradingSession:
         else:
             self.start_time = time.time()
             # start simulator
-            cmd = f"perl util/hupsim.pl -m test/tmp3/topo3.map -n test/tmp3/nodes3.map -p {self.checkerPort} -v 3"
+            cmd = f"perl util/hupsim.pl -m {self.topo} -n {self.nodes} -p {self.checkerPort} -v 3"
             outfile = open("log/Checker.log", "w")
             simulator_process = subprocess.Popen(cmd.split(" "), stdin=subprocess.PIPE,stdout=outfile,stderr=outfile ,text=True, bufsize=1, universal_newlines=True)
             # ensure simulator starts
@@ -141,6 +148,71 @@ class GradingSession:
         # time.sleep(15)
         # grading_worker.join()
         # self._FINISH = True
+
+
+def drop_handler_multi(recv_queue, send_queue):
+    last_pkt = 3
+    sending_window = []
+    winsize_logger = logging.getLogger("WinSize-LOGGER")
+    winsize_logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(fmt="%(relativeCreated)d - %(message)s")
+
+    # check log dir
+    log_dir = "log"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    fh = logging.FileHandler(filename=os.path.join(log_dir, "winsize.log"), mode="w")
+    fh.setLevel(level=logging.INFO)
+    fh.setFormatter(formatter)
+    winsize_logger.addHandler(fh)
+    winsize_logger.info("Winsize")
+
+
+    cnt = 0
+    droppeds = [False,False,False,False,False,False]
+    while True:
+        try:
+            pkt = recv_queue.get(timeout=0.01)
+        except:
+            continue
+
+        if pkt.pkt_type == 3:
+            if pkt.seq not in sending_window:
+                sending_window.append(pkt.seq)
+            last_pkt = 3
+            cnt+=1
+        elif pkt.pkt_type == 4:
+            if pkt.ack in sending_window:
+                sending_window.remove(pkt.ack)
+            elif len(sending_window)>0 and pkt.ack < min(sending_window):
+                sending_window.clear()
+            if last_pkt == 3:
+                winsize_logger.info(f"{len(sending_window)}")
+                last_pkt = 4
+        else:
+            sending_window.clear()
+
+
+        if pkt.pkt_type==3 and cnt==150 and not droppeds[0]:
+            winsize_logger.info("Packet Dropped!")
+            droppeds[0] = True
+            continue
+        if pkt.pkt_type==3 and cnt==250 and not droppeds[1]:
+            winsize_logger.info("Packet Dropped!")
+            droppeds[1] = True
+            continue
+        # if pkt.pkt_type==1 and cnt==0 and not droppeds[2]:
+        #     winsize_logger.info("Packet Dropped!")
+        #     droppeds[2] = True
+        #     continue
+        # if pkt.pkt_type==2 and cnt==0 and not droppeds[3]:
+        #     winsize_logger.info("Packet Dropped!")
+        #     droppeds[3] = True
+        #     continue
+
+
+        send_queue.put(pkt)
+
 
 def drop_handler(recv_queue, send_queue):
     dropped = False

@@ -50,6 +50,7 @@ def concurrent_session():
 
     concurrent_session.peer_list[("127.0.0.1", 48001)].send_cmd('''DOWNLOAD test/tmp3/download_target3.chunkhash test/tmp3/download_result.fragment\n''')
 
+
     while True:
         if os.path.exists("test/tmp3/download_result.fragment"):
             success = True
