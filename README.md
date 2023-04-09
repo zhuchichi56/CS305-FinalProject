@@ -1,3 +1,8 @@
+#Finally get 113/120   
+Code Design: 9/10  
+SpeetTest: 4/10  
+BasicTest: 100/100  
+
 # Set up your repo
 First, clone the repo from github and change the git remote tag::
 ```
