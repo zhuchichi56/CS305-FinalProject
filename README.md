@@ -2,7 +2,7 @@
 Code Design: 9/10  
 SpeetTest: 4/10  
 BasicTest: 100/100   
-Design and Coding all by He Zhu.
+He Zhu designed and coded everything.
 
 # Set up your repo
 First, clone the repo from github and change the git remote tag::
