@@ -2,7 +2,12 @@
 Code Design: 9/10  
 SpeetTest: 4/10  
 BasicTest: 100/100   
-He Zhu designed and coded everything.
+He Zhu designed and coded everything.  
+
+CS305 Final Score 93/100 (A)
+
+
+## Some instructions are as follows: ##  
 
 # Set up your repo
 First, clone the repo from github and change the git remote tag::
